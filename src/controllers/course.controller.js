@@ -1,4 +1,5 @@
 import db from '../models/index.js';
+import { buildQueryOptions } from '../utils/queryOption.js';
 
 /**
  * @swagger
@@ -49,43 +50,47 @@ export const createCourse = async (req, res) => {
  *     parameters:
  *       - in: query
  *         name: page
- *         schema: { type: integer, default: 1 }
+ *         schema:
+ *           type: integer
+ *           default: 1
  *         description: Page number
  *       - in: query
  *         name: limit
- *         schema: { type: integer, default: 10 }
- *         description: Number of items per page
- *     responses:
- *       200:
- *         description: List of courses
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of records per page
+ *       - in: query
+ *         name: sort
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: asc
+ *         description: Sort by createdAt field (ascending or descending)
+ *       - in: query
+ *         name: populate
+ *         schema:
+ *           type: string
+ *           enum: [Teacher, Student]  # Change this based on the model
+ *         description: Populate related model(s)
  */
+
 export const getAllCourses = async (req, res) => {
-
-    // take certain amount at a time
-    const limit = parseInt(req.query.limit) || 10;
-    // which page to take
-    const page = parseInt(req.query.page) || 1;
-
+  try {
     const total = await db.Course.count();
+    const options = buildQueryOptions(req, ['Teacher', 'Student']);
+    const courses = await db.Course.findAll(options);
 
-    try {
-        const courses = await db.Course.findAll(
-            {
-                // include: [db.Student, db.Teacher],
-                limit: limit, offset: (page - 1) * limit
-            }
-        );
-        res.json({
-            meta: {
-                totalItems: total,
-                page: page,
-                totalPages: Math.ceil(total / limit),
-            },
-            data: courses,
-        });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+    res.json({
+      total,
+      page: parseInt(req.query.page) || 1,
+      limit: parseInt(req.query.limit) || 10,
+      totalPages: Math.ceil(total / (options.limit || 10)),
+      data: courses,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
 /**

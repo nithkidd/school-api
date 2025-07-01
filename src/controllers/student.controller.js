@@ -1,4 +1,6 @@
 import db from '../models/index.js';
+import { buildQueryOptions } from '../utils/queryOption.js';
+
 
 /**
  * @swagger
@@ -22,17 +24,49 @@ export const createStudent = async (req, res) => {
  *   get:
  *     summary: Get all students
  *     tags: [Students]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, default: 1 }
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 10 }
+ *         description: Records per page
+ *       - in: query
+ *         name: sort
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *         description: Sort by createdAt
+ *       - in: query
+ *         name: populate
+ *         schema:
+ *           type: string
+ *           enum:
+ *             - Course
+ *         description: Include related models
  *     responses:
  *       200:
  *         description: List of students
  */
+
 export const getAllStudents = async (req, res) => {
-    try {
-        const students = await db.Student.findAll({ include: db.Course });
-        res.json(students);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+  try {
+    const total = await db.Student.count();
+    const options = buildQueryOptions(req, ['Course']);
+    const students = await db.Student.findAll(options);
+
+    res.json({
+      total,
+      page: parseInt(req.query.page) || 1,
+      limit: parseInt(req.query.limit) || 10,
+      totalPages: Math.ceil(total / (options.limit || 10)),
+      data: students,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
 /**
